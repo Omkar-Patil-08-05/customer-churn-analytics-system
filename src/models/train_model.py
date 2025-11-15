@@ -4,6 +4,8 @@ from sklearn.metrics import confusion_matrix, roc_curve, auc
 import matplotlib.pyplot as plt
 import seaborn as sns
 from xgboost import XGBClassifier
+import json
+
 
 
 from src.data.preprocessing import load_raw_data, preprocess
@@ -116,6 +118,37 @@ def train_baseline_models():
     plot_roc_curve(logreg_model, X_test, y_test, "ROC Curve — Logistic Regression")
     plot_roc_curve(rf_model, X_test, y_test, "ROC Curve — Random Forest")
     plot_roc_curve(xgb_model, X_test, y_test, "ROC Curve — XGBoost")
+
+    # Collect metrics for comparison
+    metrics = {
+        "logistic_regression": {
+            "precision_1": classification_report(y_test, y_pred_logreg, output_dict=True)["1"]["precision"],
+            "recall_1": classification_report(y_test, y_pred_logreg, output_dict=True)["1"]["recall"],
+            "f1_1": classification_report(y_test, y_pred_logreg, output_dict=True)["1"]["f1-score"]
+        },
+        "random_forest": {
+            "precision_1": classification_report(y_test, y_pred_rf, output_dict=True)["1"]["precision"],
+            "recall_1": classification_report(y_test, y_pred_rf, output_dict=True)["1"]["recall"],
+            "f1_1": classification_report(y_test, y_pred_rf, output_dict=True)["1"]["f1-score"]
+        },
+        "xgboost": {
+            "precision_1": classification_report(y_test, y_pred_xgb, output_dict=True)["1"]["precision"],
+            "recall_1": classification_report(y_test, y_pred_xgb, output_dict=True)["1"]["recall"],
+            "f1_1": classification_report(y_test, y_pred_xgb, output_dict=True)["1"]["f1-score"]
+        }
+    }
+
+    # Select best model based on F1-score for churn class
+    best_model_name = max(metrics, key=lambda m: metrics[m]["f1_1"])
+    print(f"\nBest model based on F1-score for churn class: {best_model_name}")
+
+    # Save metrics report
+    with open("reports/model_performance.json", "w") as f:
+        json.dump(metrics, f, indent=4)
+
+    print("\nMetrics report saved to reports/model_performance.json")
+
+
 
 
 if __name__ == "__main__":
