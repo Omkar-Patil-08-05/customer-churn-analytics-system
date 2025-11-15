@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+import json
+import traceback
 
 from src.models.inference import predict_churn
 
@@ -10,17 +12,19 @@ app = FastAPI(
     version="1.0"
 )
 
-# CORS (Allow frontend website to call the API)
+# --------------------------
+# CORS SETTINGS
+# --------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],    # later we restrict this after deployment
+    allow_origins=["*"],   # allow frontend for now
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # --------------------------
-# Pydantic Input Schema
+# INPUT SCHEMA
 # --------------------------
 class CustomerInput(BaseModel):
     gender: str
@@ -45,7 +49,7 @@ class CustomerInput(BaseModel):
 
 
 # --------------------------
-# Health Check Endpoint
+# HEALTH CHECK
 # --------------------------
 @app.get("/")
 def health_check():
@@ -53,13 +57,25 @@ def health_check():
 
 
 # --------------------------
-# Prediction Endpoint
+# PREDICTION ENDPOINT
 # --------------------------
 @app.post("/predict")
 def predict_churn_api(customer: CustomerInput):
-    result = predict_churn(customer.dict())
-    return {
-        "model_used": result["best_model"],
-        "prediction": result["prediction"],
-        "churn_probability": result["churn_probability"]
-    }
+    try:
+        input_dict = customer.dict()
+        result = predict_churn(input_dict)
+
+        return {
+            "model_used": result["best_model"],
+            "prediction": result["prediction"],
+            "churn_probability": result["churn_probability"]
+        }
+
+    except Exception as e:
+        # Print backend error to Render logs
+        print("\n🔥🔥🔥 ERROR IN /predict 🔥🔥🔥")
+        print(e)
+        traceback.print_exc()
+        print("--------------------------------------------------\n")
+
+        raise HTTPException(status_code=500, detail=str(e))
