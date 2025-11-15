@@ -14,7 +14,8 @@ def clean_total_charges(df: pd.DataFrame):
     Convert TotalCharges to numeric and handle errors.
     """
     df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
-    df['TotalCharges'].fillna(df['TotalCharges'].median(), inplace=True)
+    if 'TotalCharges' in df.columns:
+        df['TotalCharges'] = df['TotalCharges'].fillna(df['TotalCharges'].median())
     return df
 
 
@@ -26,11 +27,10 @@ def clean_senior_citizen(df: pd.DataFrame):
     return df
 
 
-def drop_customer_id(df: pd.DataFrame):
-    """
-    customerID is not useful for prediction.
-    """
-    df = df.drop(columns=['customerID'])
+def drop_customer_id(df):
+    # Only drop customerID if it exists (training), ignore otherwise (inference)
+    if 'customerID' in df.columns:
+        df = df.drop(columns=['customerID'])
     return df
 
 
