@@ -1,5 +1,10 @@
 import pandas as pd
 import joblib
+from sklearn.metrics import confusion_matrix, roc_curve, auc
+import matplotlib.pyplot as plt
+import seaborn as sns
+from xgboost import XGBClassifier
+
 
 from src.data.preprocessing import load_raw_data, preprocess
 from src.data.feature_engineering import (
@@ -12,6 +17,29 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
 from sklearn.pipeline import Pipeline
+
+def plot_confusion(y_true, y_pred, title):
+    cm = confusion_matrix(y_true, y_pred)
+    plt.figure(figsize=(5,4))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+    plt.title(title)
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.show()
+
+def plot_roc_curve(model, X_test, y_test, title):
+    y_prob = model.predict_proba(X_test)[:, 1]
+    fpr, tpr, _ = roc_curve(y_test, y_prob)
+    roc_auc = auc(fpr, tpr)
+
+    plt.figure(figsize=(6,5))
+    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.2f}")
+    plt.plot([0, 1], [0, 1], linestyle='--')
+    plt.title(title)
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.legend()
+    plt.show()
 
 
 def train_baseline_models():
@@ -58,3 +86,37 @@ def train_baseline_models():
     joblib.dump(rf_model, "models/random_forest.pkl")
 
     print("\nModels saved in: models/")
+
+    # MODEL 3: XGBoost
+    xgb_model = Pipeline(steps=[
+        ('preprocessor', preprocessor),
+        ('classifier', XGBClassifier(
+            eval_metric='logloss',
+            n_estimators=300,
+            learning_rate=0.1,
+            max_depth=5,
+            subsample=0.8
+        ))
+    ])
+
+    xgb_model.fit(X_train, y_train)
+
+    print("\n=== XGBoost Report ===")
+    y_pred_xgb = xgb_model.predict(X_test)
+    print(classification_report(y_test, y_pred_xgb))
+
+    joblib.dump(xgb_model, "models/xgboost.pkl")
+
+    # Confusion Matrices
+    plot_confusion(y_test, y_pred_logreg, "Confusion Matrix - Logistic Regression")
+    plot_confusion(y_test, y_pred_rf, "Confusion Matrix - Random Forest")
+    plot_confusion(y_test, y_pred_xgb, "Confusion Matrix - XGBoost")
+
+    # ROC Curves
+    plot_roc_curve(logreg_model, X_test, y_test, "ROC Curve — Logistic Regression")
+    plot_roc_curve(rf_model, X_test, y_test, "ROC Curve — Random Forest")
+    plot_roc_curve(xgb_model, X_test, y_test, "ROC Curve — XGBoost")
+
+
+if __name__ == "__main__":
+    train_baseline_models()
