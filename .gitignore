@@ -4,7 +4,6 @@ __pycache__/
 
 # Data
 /data/processed/*
-/models/*
 
 # Environments
 venv/
