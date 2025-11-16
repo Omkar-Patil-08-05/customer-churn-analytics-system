@@ -3,68 +3,57 @@ import joblib
 import pandas as pd
 import os
 
-# -----------------------------------------
-# 1. Load best model name from metrics JSON
-# -----------------------------------------
-def get_best_model_name(report_path="reports/model_performance.json"):
-    if not os.path.exists(report_path):
-        raise FileNotFoundError(f"Performance report not found at {report_path}")
 
-    with open(report_path, "r") as f:
+# -----------------------------------------
+# Load best model name from saved report
+# -----------------------------------------
+def get_best_model_name(path="reports/model_performance.json"):
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Could not find metrics file at {path}")
+
+    with open(path, "r") as f:
         metrics = json.load(f)
 
-    best_model = max(metrics, key=lambda m: metrics[m]["f1_1"])
-    return best_model
+    best = max(metrics, key=lambda m: metrics[m]["f1_1"])
+    return best
 
 
 # -----------------------------------------
-# 2. Load the actual ML model
+# Load trained model
 # -----------------------------------------
 def load_model(model_name):
-    model_path_map = {
-        "logistic_regression": "models/logistic_regression.pkl",
-        "random_forest": "models/random_forest.pkl",
-        "xgboost": "models/xgboost.pkl"
-    }
+    model_path = f"models/{model_name}.pkl"
 
-    model_path = model_path_map.get(model_name)
-
-    if model_path is None or not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found for {model_name}")
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file missing: {model_path}")
 
     return joblib.load(model_path)
 
 
 # -----------------------------------------
-# 3. Prediction function
+# Prediction function
 # -----------------------------------------
 def predict_churn(input_dict: dict):
 
-    # Convert JSON → DataFrame
     df = pd.DataFrame([input_dict])
 
-    # No preprocessing here — model already contains preprocessing pipeline
-    df_final = df.copy()
+    # pick model
+    best = get_best_model_name()
+    model = load_model(best)
 
-    # Load best model name
-    best_model_name = get_best_model_name()
-
-    # Load the model
-    model = load_model(best_model_name)
-
-    # Make prediction
-    pred = model.predict(df_final)[0]
-    prob = model.predict_proba(df_final)[0][1]
+    # model includes preprocessing pipeline → safe!
+    pred = model.predict(df)[0]
+    prob = model.predict_proba(df)[0][1]
 
     return {
-        "best_model": best_model_name,
+        "best_model": best,
         "prediction": int(pred),
         "churn_probability": float(prob)
     }
 
 
 # -----------------------------------------
-# 4. Manual test
+# Manual test
 # -----------------------------------------
 if __name__ == "__main__":
     sample = {
